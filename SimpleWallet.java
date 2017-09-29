@@ -214,6 +214,50 @@ public class SimpleWallet {
     }
     return result;
   }
+
+  public String doTransfer(JSONArray destinations, String payment_id){
+    String result = "";
+    String buff = "";
+    JSONObject args = new JSONObject();
+    JSONObject params = new JSONObject();
+    this.oper_status = false;
+    try {
+      args.put("jsonrpc", this.rpc_v);
+      args.put("id", this.id_conn);
+      args.put("method", "transfer");
+      params.put("destinations", destinations);
+      params.put("fee", 1000000000L);
+      params.put("mixin", 0);
+      params.put("unlock_time", 0);
+      params.put("payment_id", payment_id);
+      args.put("params", params);
+      } catch (JSONException e){
+      e.printStackTrace();
+    }
+    Log.d(this.log_tag, args.toString());
+    buff = this.doServiceWallet(args.toString());
+    Log.d(this.log_tag, buff);
+    if (this.service_status){
+      try {
+        JSONObject root = new JSONObject(buff);
+        if (root.isNull("error")){
+          if (root.getString("id").equals(this.id_conn)){
+            JSONObject res = root.getJSONObject("result");
+              result = res.getString("tx_hash");
+              this.oper_status = true;
+            }
+          }
+        } catch (JSONException e){
+        e.printStackTrace();
+      }
+	}
+	if (this.oper_status){
+      Log.d(this.log_tag, "wallet: success");
+      } else {
+	  Log.d(this.log_tag, "wallet: fail");
+	}
+    return result;
+  }
   
   public Object[][] getTransfers(){
     Object[][] result = new Object[0][0];
@@ -240,7 +284,6 @@ public class SimpleWallet {
               if(size > 0){
                 result = new Object[size][9];
                 for (int i = 0; i < size; i++){
-                  Log.d(this.log_tag, "i: " + i);
                   JSONObject items_obj = transfers.getJSONObject(i);
                   result[i][0] = new String("");
                   if (items_obj.has("address")){
