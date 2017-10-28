@@ -15,16 +15,16 @@ package club.karbo.karbolightwallet;
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-import java.io.IOException;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.security.SecureRandom;
 import java.text.DecimalFormat;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.util.EntityUtils;
+import javax.net.ssl.HttpsURLConnection;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -57,20 +57,39 @@ public class SimpleWallet {
   private String doServiceWallet(String req){
     String buff = "";
     this.service_status = false;
-    HttpResponse response;
-    HttpClient client = new DefaultHttpClient();
-    HttpPost conn = new HttpPost("http://" + this.host + ":" + this.port + "/json_rpc");
+    URL url;
+    HttpURLConnection conn = null;
     try {
-      StringEntity params = new StringEntity(req);
-      conn.setEntity(params);
-      response = client.execute(conn);
-      response.addHeader("Content-Type", "application/json; charset=UTF-8");
-      buff = EntityUtils.toString(response.getEntity(), "UTF-8");
-      this.service_status = true;
-	  } catch (ClientProtocolException e){
-	  e.printStackTrace();
-	  } catch (IOException e){
-	  e.printStackTrace();
+      url = new URL("http://" + this.host + ":" + this.port + "/json_rpc");
+      conn = (HttpURLConnection) url.openConnection();
+      conn.setReadTimeout(10000);
+      conn.setConnectTimeout(10000);
+      conn.setRequestMethod("POST");
+      conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+      conn.setDoInput(true);
+      conn.setDoOutput(true);
+      OutputStream os = conn.getOutputStream();
+      BufferedWriter writer = new BufferedWriter(
+      new OutputStreamWriter(os, "UTF-8"));
+      writer.write(req);
+      writer.flush();
+      writer.close();
+      os.close();
+      int responseCode = conn.getResponseCode();
+      if (responseCode == HttpsURLConnection.HTTP_OK){
+        String line;
+        BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+        while ((line = br.readLine()) != null){
+          buff += line;
+        }
+        this.service_status = true;
+      }
+      } catch (Exception e){
+        e.printStackTrace();
+      } finally {
+        if (conn != null){
+          conn.disconnect();
+        }
     }
     return buff;
   }
